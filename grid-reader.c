@@ -85,7 +85,7 @@ grid_reader_cursor_left(struct grid_reader *gr, int wrap)
 	}
 	if (gr->cx == 0 && gr->cy > 0 &&
 	    (wrap ||
-	     grid_get_line(gr->gd, gr->cy - 1)->flags & GRID_LINE_WRAPPED)) {
+	     grid_line_is_wrapped(gr->gd, gr->cy - 1))) {
 		grid_reader_cursor_up(gr);
 		grid_reader_cursor_end_of_line(gr, 0, 0);
 	} else if (gr->cx > 0)
@@ -130,8 +130,7 @@ grid_reader_cursor_start_of_line(struct grid_reader *gr, int wrap)
 {
 	if (wrap) {
 		while (gr->cy > 0 &&
-		    grid_get_line(gr->gd, gr->cy - 1)->flags &
-		        GRID_LINE_WRAPPED)
+		       grid_line_is_wrapped(gr->gd, gr->cy - 1))
 			gr->cy--;
 	}
 	gr->cx = 0;
@@ -145,8 +144,8 @@ grid_reader_cursor_end_of_line(struct grid_reader *gr, int wrap, int all)
 
 	if (wrap) {
 		yy = gr->gd->hsize + gr->gd->sy - 1;
-		while (gr->cy < yy && grid_get_line(gr->gd, gr->cy)->flags &
-		    GRID_LINE_WRAPPED)
+		while (gr->cy < yy &&
+		       grid_line_is_wrapped(gr->gd, gr->cy))
 			gr->cy++;
 	}
 	if (all)
@@ -170,7 +169,7 @@ grid_reader_handle_wrap(struct grid_reader *gr, u_int *xx, u_int *yy)
 		grid_reader_cursor_start_of_line(gr, 0);
 		grid_reader_cursor_down(gr);
 
-		if (grid_get_line(gr->gd, gr->cy)->flags & GRID_LINE_WRAPPED)
+		if (grid_line_is_wrapped(gr->gd, gr->cy))
 			*xx = gr->gd->sx - 1;
 		else
 			*xx = grid_reader_line_length(gr);
@@ -192,7 +191,7 @@ grid_reader_cursor_next_word(struct grid_reader *gr, const char *separators)
 	u_int	xx, yy, width;
 
 	/* Do not break up wrapped words. */
-	if (grid_get_line(gr->gd, gr->cy)->flags & GRID_LINE_WRAPPED)
+	if (grid_line_is_wrapped(gr->gd, gr->cy))
 		xx = gr->gd->sx - 1;
 	else
 		xx = grid_reader_line_length(gr);
@@ -237,7 +236,7 @@ grid_reader_cursor_next_word_end(struct grid_reader *gr, const char *separators)
 	u_int	xx, yy;
 
 	/* Do not break up wrapped words. */
-	if (grid_get_line(gr->gd, gr->cy)->flags & GRID_LINE_WRAPPED)
+	if (grid_line_is_wrapped(gr->gd, gr->cy))
 		xx = gr->gd->sx - 1;
 	else
 		xx = grid_reader_line_length(gr);
@@ -321,8 +320,7 @@ grid_reader_cursor_previous_word(struct grid_reader *gr, const char *separators,
 		oldy = gr->cy;
 		if (gr->cx == 0) {
 			if (gr->cy == 0 ||
-			    (~grid_get_line(gr->gd, gr->cy - 1)->flags &
-			    GRID_LINE_WRAPPED))
+			    grid_line_is_wrapped(gr->gd, gr->cy - 1))
 				break;
 			grid_reader_cursor_up(gr);
 			grid_reader_cursor_end_of_line(gr, 0, 1);
@@ -372,7 +370,7 @@ grid_reader_cursor_jump(struct grid_reader *gr, const struct utf8_data *jc)
 		}
 
 		if (py == yy ||
-		    !(grid_get_line(gr->gd, py)->flags & GRID_LINE_WRAPPED))
+		    !grid_line_is_wrapped(gr->gd, py))
 			return (0);
 		px = 0;
 	}
@@ -399,7 +397,7 @@ grid_reader_cursor_jump_back(struct grid_reader *gr, const struct utf8_data *jc)
 		}
 
 		if (py == 1 ||
-		    !(grid_get_line(gr->gd, py - 2)->flags & GRID_LINE_WRAPPED))
+		    !grid_line_is_wrapped(gr->gd, py - 2))
 			return (0);
 		xx = grid_line_length(gr->gd, py - 2);
 	}
@@ -430,7 +428,7 @@ grid_reader_cursor_back_to_indentation(struct grid_reader *gr)
 				return;
 			}
 		}
-		if (~grid_get_line(gr->gd, py)->flags & GRID_LINE_WRAPPED)
+		if (!grid_line_is_wrapped(gr->gd, py))
 			break;
 	}
 	gr->cx = oldx;

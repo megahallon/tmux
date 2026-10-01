@@ -226,6 +226,24 @@ grid_compact_line(struct grid_line *gl)
 	gl->extdsize = new_extdsize;
 }
 
+int
+grid_line_is_wrapped(struct grid *gd, int line)
+{
+	struct grid_line *gl;
+
+	gl = grid_get_line(gd, line);
+
+	if (gl->flags & GRID_LINE_WRAPPED)
+		return 1;
+
+	if(gl->cellsize == gd->sx &&
+	   grid_line_length(gd, line) == gd->sx &&
+	   grid_line_length(gd, line + 1) != 0)
+		return 1;
+
+	return 0;
+}
+
 /* Get line data. */
 struct grid_line *
 grid_get_line(struct grid *gd, u_int line)
@@ -1384,7 +1402,7 @@ grid_reflow_join(struct grid *target, struct grid *gd, u_int sx, u_int yy,
 		line = yy + 1 + lines;
 
 		/* If the next line is empty, skip it. */
-		if (~gd->linedata[line].flags & GRID_LINE_WRAPPED)
+		if (!grid_line_is_wrapped(gd, line))
 			wrapped = 0;
 		if (gd->linedata[line].cellused == 0) {
 			if (!wrapped)
@@ -1467,7 +1485,7 @@ grid_reflow_split(struct grid *target, struct grid *gd, u_int sx, u_int yy,
 	int			 flags = gl->flags;
 
 	/* How many lines do we need to insert? We know we need at least two. */
-	if (~gl->flags & GRID_LINE_EXTENDED)
+	if (!grid_line_is_wrapped(gd, yy))
 		lines = 1 + (gl->cellused - 1) / sx;
 	else {
 		lines = 2;
@@ -1502,7 +1520,7 @@ grid_reflow_split(struct grid *target, struct grid *gd, u_int sx, u_int yy,
 		grid_set_cell(target, xx, line, &gc);
 		xx++;
 	}
-	if (flags & GRID_LINE_WRAPPED)
+	if (grid_line_is_wrapped(target, line))
 		target->linedata[line].flags |= GRID_LINE_WRAPPED;
 
 	/* Move the remainder of the original line. */
@@ -1519,7 +1537,7 @@ grid_reflow_split(struct grid *target, struct grid *gd, u_int sx, u_int yy,
 	 * If the original line had the wrapped flag and there is still space
 	 * in the last new line, try to join with the next lines.
 	 */
-	if (width < sx && (flags & GRID_LINE_WRAPPED))
+	if (width < sx && grid_line_is_wrapped(gd, yy))
 		grid_reflow_join(target, gd, sx, yy, width, 1);
 }
 
@@ -1589,7 +1607,7 @@ grid_reflow(struct grid *gd, u_int sx)
 		 * If the line was previously wrapped, join as much as possible
 		 * of the next line.
 		 */
-		if (gl->flags & GRID_LINE_WRAPPED)
+		if (grid_line_is_wrapped(gd, yy))
 			grid_reflow_join(target, gd, sx, yy, width, 0);
 		else
 			grid_reflow_move(target, gl);
@@ -1616,7 +1634,7 @@ grid_wrap_position(struct grid *gd, u_int px, u_int py, u_int *wx, u_int *wy)
 	u_int	ax = 0, ay = 0, yy;
 
 	for (yy = 0; yy < py; yy++) {
-		if (gd->linedata[yy].flags & GRID_LINE_WRAPPED)
+		if (grid_line_is_wrapped(gd, yy))
 			ax += gd->linedata[yy].cellused;
 		else {
 			ax = 0;
@@ -1640,7 +1658,7 @@ grid_unwrap_position(struct grid *gd, u_int *px, u_int *py, u_int wx, u_int wy)
 	for (yy = 0; yy < gd->hsize + gd->sy - 1; yy++) {
 		if (ay == wy)
 			break;
-		if (~gd->linedata[yy].flags & GRID_LINE_WRAPPED)
+		if (!grid_line_is_wrapped(gd, yy))
 			ay++;
 	}
 
@@ -1649,11 +1667,12 @@ grid_unwrap_position(struct grid *gd, u_int *px, u_int *py, u_int wx, u_int wy)
 	 * until we find the end or the line now containing wx.
 	 */
 	if (wx == UINT_MAX) {
-		while (yy < ey && gd->linedata[yy].flags & GRID_LINE_WRAPPED)
+		while (yy < ey &&
+		       grid_line_is_wrapped(gd, yy))
 			yy++;
 		wx = gd->linedata[yy].cellused;
 	} else {
-		while (gd->linedata[yy].flags & GRID_LINE_WRAPPED) {
+		while (grid_line_is_wrapped(gd, yy)) {
 			if (wx < gd->linedata[yy].cellused)
 				break;
 			wx -= gd->linedata[yy].cellused;

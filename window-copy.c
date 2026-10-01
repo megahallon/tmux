@@ -6235,7 +6235,9 @@ window_copy_copy_line(struct window_mode_entry *wme, char **buf, size_t *off,
 	gl = grid_get_line(gd, sy);
 	if (gl->flags & GRID_LINE_WRAPPED && gl->cellsize <= gd->sx)
 		wrapped = 1;
-
+	else if (grid_line_is_wrapped(gd, sy))
+		wrapped = 1;
+	
 	/* If the line was wrapped, don't strip spaces (use the full length). */
 	if (wrapped)
 		xx = gl->cellsize;
