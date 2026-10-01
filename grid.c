@@ -236,10 +236,11 @@ grid_line_is_wrapped(struct grid *gd, int line)
 	if (gl->flags & GRID_LINE_WRAPPED)
 		return 1;
 
-	if(gl->cellsize == gd->sx &&
-	   grid_line_length(gd, line) == gd->sx &&
-	   grid_line_length(gd, line + 1) != 0)
+	if (gl->cellsize == gd->sx &&
+	    grid_line_length(gd, line) == gd->sx &&
+	    grid_line_length(gd, line + 1) != 0){
 		return 1;
+	}
 
 	return 0;
 }
@@ -1482,7 +1483,7 @@ grid_reflow_split(struct grid *target, struct grid *gd, u_int sx, u_int yy,
 	struct grid_cell	 gc;
 	u_int			 line, lines, width, i, xx;
 	u_int			 used = gl->cellused;
-	int			 flags = gl->flags;
+	int			 wrapped = grid_line_is_wrapped(gd, yy);
 
 	/* How many lines do we need to insert? We know we need at least two. */
 	if (!grid_line_is_wrapped(gd, yy))
@@ -1520,7 +1521,7 @@ grid_reflow_split(struct grid *target, struct grid *gd, u_int sx, u_int yy,
 		grid_set_cell(target, xx, line, &gc);
 		xx++;
 	}
-	if (grid_line_is_wrapped(target, line))
+	if (wrapped)
 		target->linedata[line].flags |= GRID_LINE_WRAPPED;
 
 	/* Move the remainder of the original line. */
@@ -1537,7 +1538,7 @@ grid_reflow_split(struct grid *target, struct grid *gd, u_int sx, u_int yy,
 	 * If the original line had the wrapped flag and there is still space
 	 * in the last new line, try to join with the next lines.
 	 */
-	if (width < sx && grid_line_is_wrapped(gd, yy))
+	if (width < sx && wrapped)
 		grid_reflow_join(target, gd, sx, yy, width, 1);
 }
 
