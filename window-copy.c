@@ -2081,7 +2081,7 @@ window_copy_cmd_next_matching_bracket(struct window_copy_cmd_state *cs)
 				if (py == yy)
 					continue;
 				gl = grid_get_line(s->grid, py);
-				if (~gl->flags & GRID_LINE_WRAPPED)
+				if (!grid_line_is_wrapped(s->grid, py))
 					continue;
 				if (gl->cellsize > s->grid->sx)
 					continue;
@@ -2599,8 +2599,8 @@ window_copy_cmd_select_word(struct window_copy_cmd_state *cs)
 	/* Handle single character words. */
 	nextx = px + 1;
 	nexty = py;
-	if (grid_get_line(data->backing->grid, nexty)->flags &
-	    GRID_LINE_WRAPPED && nextx > screen_size_x(data->backing) - 1) {
+	if (grid_line_is_wrapped(data->backing->grid, nexty) &&
+	    nextx > screen_size_x(data->backing) - 1) {
 		nextx = 0;
 		nexty++;
 	}
@@ -4043,7 +4043,6 @@ window_copy_search_lr(struct grid *gd, struct grid *sgd, u_int *ppx, u_int py,
 {
 	u_int			 ax, bx, px, pywrap, endline, padding;
 	int			 matched;
-	struct grid_line	*gl;
 	struct grid_cell	 gc;
 
 	endline = gd->hsize + gd->sy - 1;
@@ -4054,8 +4053,7 @@ window_copy_search_lr(struct grid *gd, struct grid *sgd, u_int *ppx, u_int py,
 			pywrap = py;
 			/* Wrap line. */
 			while (px >= gd->sx && pywrap < endline) {
-				gl = grid_get_line(gd, pywrap);
-				if (~gl->flags & GRID_LINE_WRAPPED)
+				if (!grid_line_is_wrapped(gd, pywrap))
 					break;
 				px -= gd->sx;
 				pywrap++;
@@ -4087,7 +4085,6 @@ window_copy_search_rl(struct grid *gd,
 {
 	u_int			 ax, bx, px, pywrap, endline, padding;
 	int			 matched;
-	struct grid_line	*gl;
 	struct grid_cell	 gc;
 
 	endline = gd->hsize + gd->sy - 1;
@@ -4098,8 +4095,7 @@ window_copy_search_rl(struct grid *gd,
 			pywrap = py;
 			/* Wrap line. */
 			while (px >= gd->sx && pywrap < endline) {
-				gl = grid_get_line(gd, pywrap);
-				if (~gl->flags & GRID_LINE_WRAPPED)
+				if (!grid_line_is_wrapped(gd, pywrap))
 					break;
 				px -= gd->sx;
 				pywrap++;
@@ -4133,7 +4129,6 @@ window_copy_search_lr_regex(struct grid *gd, u_int *ppx, u_int *psx, u_int py,
 	u_int			endline, foundx, foundy, len, pywrap, size = 1;
 	char		       *buf;
 	regmatch_t		regmatch;
-	struct grid_line       *gl;
 
 	/*
 	 * This can happen during search if the last match was the last
@@ -4156,8 +4151,7 @@ window_copy_search_lr_regex(struct grid *gd, u_int *ppx, u_int *psx, u_int py,
 	while (buf != NULL &&
 	    pywrap < endline &&
 	    len < WINDOW_COPY_SEARCH_MAX_LINE) {
-		gl = grid_get_line(gd, pywrap);
-		if (~gl->flags & GRID_LINE_WRAPPED)
+		if (!grid_line_is_wrapped(gd, pywrap))
 			break;
 		pywrap++;
 		buf = window_copy_stringify(gd, pywrap, 0, gd->sx, buf, &size);
@@ -4199,7 +4193,6 @@ window_copy_search_rl_regex(struct grid *gd, u_int *ppx, u_int *psx, u_int py,
 	int			eflags = 0;
 	u_int			endline, len, pywrap, size = 1;
 	char		       *buf;
-	struct grid_line       *gl;
 
 	/* Set flags for regex search. */
 	if (first != 0)
@@ -4215,8 +4208,7 @@ window_copy_search_rl_regex(struct grid *gd, u_int *ppx, u_int *psx, u_int py,
 	while (buf != NULL &&
 	    pywrap < endline &&
 	    len < WINDOW_COPY_SEARCH_MAX_LINE) {
-		gl = grid_get_line(gd, pywrap);
-		if (~gl->flags & GRID_LINE_WRAPPED)
+		if (!grid_line_is_wrapped(gd, pywrap))
 			break;
 		pywrap++;
 		buf = window_copy_stringify(gd, pywrap, 0, gd->sx, buf, &size);
@@ -4538,7 +4530,7 @@ window_copy_search_back_overlap(struct grid *gd, regex_t *preg, u_int *ppx,
 	px = *ppx;
 	py = *ppy;
 	while (found && px == 0 && py - 1 > endline &&
-	       grid_get_line(gd, py - 2)->flags & GRID_LINE_WRAPPED &&
+	       grid_line_is_wrapped(gd, py - 2) &&
 	       endx == oldendx && endy == oldendy) {
 		py--;
 		found = window_copy_search_rl_regex(gd, &px, &sx, py - 1, 0,
@@ -4814,7 +4806,8 @@ window_copy_visible_lines(struct window_copy_mode_data *data, u_int *start,
 
 	for (*start = gd->hsize - data->oy; *start > 0; (*start)--) {
 		gl = grid_peek_line(gd, (*start) - 1);
-		if (gl == NULL || ~gl->flags & GRID_LINE_WRAPPED)
+		if (gl == NULL ||
+		    !grid_line_is_wrapped(gd, (*start) - 1))
 			break;
 	}
 	*end = gd->hsize - data->oy + gd->sy;
@@ -6084,8 +6077,8 @@ window_copy_get_selection(struct window_mode_entry *wme, size_t *len)
 	}
 	 /* Remove final \n (unless at end in vi mode). */
 	if (keys == MODEKEY_EMACS || lastex <= ey_last) {
-		if (~grid_get_line(data->backing->grid, ey)->flags &
-		    GRID_LINE_WRAPPED || lastex != ey_last)
+		if (!grid_line_is_wrapped(data->backing->grid, ey) ||
+		    lastex != ey_last)
 			off -= 1;
 	}
 	*len = off;
